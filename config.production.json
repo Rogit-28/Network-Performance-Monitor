@@ -1,0 +1,33 @@
+{
+  "logging": {
+    "log_level": "INFO",
+    "log_interval": 1.0,
+    "max_log_size": 52428800,
+    "retention_days": 30,
+    "log_file": "network_metrics.log"
+  },
+  "metrics": {
+    "interfaces": true,
+    "performance": true,
+    "hardware": true,
+    "latency": true,
+    "throughput": true,
+    "bytes_sent": true,
+    "bytes_received": true,
+    "packets_sent": true,
+    "packets_received": true
+  },
+  "ping_host": "8.8.8.8",
+  "update_interval": 2.0,
+  "cache_duration": 1.0,
+  "max_concurrent_requests": 100,
+  "rate_limit": {
+    "requests": 1000,
+    "window_seconds": 3600
+  },
+  "security": {
+    "enable_auth": false,
+    "allowed_origins": ["https://yourdomain.com", "https://www.yourdomain.com"],
+    "enable_rate_limiting": true
+  }
+}
