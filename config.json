@@ -1,0 +1,22 @@
+{
+  "logging": {
+    "log_level": "DEBUG",
+    "log_interval": 1.0,
+    "max_log_size": 10485760,
+    "retention_days": 7,
+    "log_file": "network_metrics.log"
+  },
+  "metrics": {
+    "interfaces": true,
+    "performance": true,
+    "hardware": true,
+    "latency": true,
+    "throughput": true,
+    "bytes_sent": true,
+    "bytes_received": true,
+    "packets_sent": true,
+    "packets_received": true
+  },
+  "ping_host": "8.8.8.8",
+  "update_interval": 1.0
+}

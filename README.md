@@ -25,17 +25,58 @@ For more details on the limitations and future development, please see the `KNOW
 ### Prerequisites
 
 -   Python 3.8+
--   Docker (optional, for containerized deployment)
+-   Node.js and npm
+-   Git (for cloning the repository)
 
 ---
 
 ## ⚙️ How to Run
 
-You can run this application in two ways: locally on a Windows machine for full functionality, or via Docker for a cross-platform, containerized deployment with some limitations.
+You can run this application using the automated run scripts or by setting up the backend and frontend manually. The automated scripts are the recommended approach as they handle all dependencies and startup procedures automatically.
 
-### 🖥️ Locally on Windows (Full Functionality)
+### 🚀 Using Automated Run Scripts (Recommended)
 
-This is the recommended method for experiencing the application's full capabilities.
+The project includes automated run scripts to simplify setup and execution for both Unix-like systems and Windows. Both scripts provide the same functionality including dependency checking, dependency installation, virtual environment management, application startup, error handling, and cross-platform compatibility. The scripts handle process management by storing process IDs in `.pid` files, automatically cleaning up processes when the script exits, and properly terminating background processes when interrupted (Ctrl+C).
+
+**On Linux/macOS:**
+```bash
+chmod +x run.sh # Make the script executable
+./run.sh [option]
+```
+
+**On Windows (Command Prompt):**
+```cmd
+run.bat [option]
+```
+
+**On Windows (Git Bash or WSL):**
+```bash
+./run.sh [option]
+```
+
+**Options:**
+- `-d, --dev`: Start in development mode (default)
+  - Starts backend with hot-reload enabled
+  - Starts frontend in development mode
+  - Access at http://127.0.0.1:8000 (backend) and http://127.0.0.1:3000 (frontend)
+- `-p, --prod`: Start in production mode
+  - Builds frontend for production
+  - Starts backend with multiple workers
+  - Optimized for production deployment
+- `-s, --setup`: Install dependencies only
+  - Installs Python and Node.js dependencies
+  - Does not start the application
+- `-h, --help`: Show help message
+
+**Cross-platform compatibility:**
+- On Windows, use either the batch file (`run.bat`) with Command Prompt or the bash script (`run.sh`) with Git Bash/WSL
+- On Linux/Mac, use the bash script (`run.sh`) directly
+
+When running in development mode, the application will start both the backend API server (on port 8000) and the frontend Next.js application (on port 3000). The backend will be available at `http://127.0.0.1:8000` and the frontend at `http://127.0.0.1:3000`.
+
+### 🖥️ Manual Setup (Advanced Users)
+
+For those who prefer to set up the backend and frontend manually, follow these steps:
 
 1.  **Clone the repository:**
     ```bash
@@ -43,39 +84,31 @@ This is the recommended method for experiencing the application's full capabilit
     cd <repository-directory>
     ```
 
-2.  **Install the required dependencies:**
+2.  **Install Python dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
 
-3.  **Run the Streamlit application:**
+3. **Install Node.js dependencies:**
     ```bash
-    streamlit run appoptimized.py
+    cd frontend/app1
+    npm install
+    cd ../..
     ```
 
-4.  Open your web browser and navigate to `http://localhost:8501`.
-
-### 🐳 Using Docker (Limited Functionality)
-
-This method uses a Linux container, which makes the application portable but with some important trade-offs.
-
-1.  **Build and run the container using Docker Compose:**
+4.  **Start the backend API server:**
     ```bash
-    docker compose up --build
+    cd backend/api
+    python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
     ```
 
-2.  Open your web browser and navigate to `http://localhost:8501`.
+5.  **In a new terminal, start the frontend:**
+    ```bash
+    cd frontend/app1
+    npm run dev
+    ```
 
----
-
-## ⚠️ Functionality Limitations in Docker
-
-The official Docker deployment uses a standard **Linux container**. Due to the isolated nature of containers and platform differences, there are key limitations when running the application this way:
-
--   **Limited Network Visibility:** The application can only see the container's own virtual network interfaces (e.g., `lo`, `eth0`). It **cannot** see the host machine's full list of physical or virtual network adapters (like `Wi-Fi` or `Ethernet`).
--   **Hardware Information Disabled:** The "Hardware Information" section is **not available**. This feature relies on Windows-specific libraries (`wmi`) that are not present in the Linux container.
-
-> **Why?** The application was originally designed for Windows. The Docker version is a cross-platform compatibility layer that allows it to run on any system, at the cost of losing direct access to the host's hardware.
+6. Open your web browser and navigate to `http://127.0.1:300` to access the application interface. The API will be available at `http://127.0.1:8000`.
 
 ---
 
