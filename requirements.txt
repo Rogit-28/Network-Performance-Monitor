@@ -1,0 +1,11 @@
+# Powers the interactive web application interface.
+streamlit
+
+# Used for accessing system details and network information.
+psutil
+
+# Required for numerical calculations, particularly for performance metrics.
+numpy
+
+# Essential for organizing and displaying data in tables.
+pandas
