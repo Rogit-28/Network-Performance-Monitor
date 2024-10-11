@@ -3,4 +3,3 @@ psutil
 wmi
 numpy
 pandas
-pywin32
