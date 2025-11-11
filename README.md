@@ -1,10 +1,10 @@
-# 🌐 Network Monitoring Application
+# 🌐 Network Performance Monitor
 
 A sleek and powerful network monitoring tool built with Python and Streamlit. This application provides real-time insights into your system's network interfaces, hardware details, and performance metrics.
 
 ---
 
-## 📝 Project Status
+## Project Status
 
 This project is currently in a **stable beta** phase. It is fully functional on Windows, but has limitations when running in a Linux container.
 
@@ -12,7 +12,7 @@ For more details on the limitations and future development, please see the `KNOW
 
 ---
 
-## ✨ Features
+## Features
 
 -   **Available Network Interfaces:** Lists all network interfaces on your machine, displaying their IPv4 and IPv6 addresses.
 -   **Hardware Information:** Provides detailed hardware specifications for your network adapters, including MAC address, link speed, and driver details. *(Note: This feature is only available when running on a native Windows host).*
@@ -20,7 +20,7 @@ For more details on the limitations and future development, please see the `KNOW
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
