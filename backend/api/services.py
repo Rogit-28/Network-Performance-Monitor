@@ -12,31 +12,58 @@ from backend.logger_initializer.logging_service import JSONLogger as BackendJSON
 from backend.simulation.simulation_service import SimulationService
 import time
 import threading
+import asyncio
 from functools import wraps
+from collections import OrderedDict
 
 
-def cache_result(cache_duration: float = 1.0):
-    """Decorator to cache function results for a specified duration"""
+class LRUCache:
+    """Simple LRU Cache implementation for better performance."""
+    def __init__(self, maxsize: int = 128, ttl: float = 1.0):
+        self.maxsize = maxsize
+        self.ttl = ttl
+        self.cache = OrderedDict()
+        self.lock = threading.Lock()
+    
+    def get(self, key: str):
+        with self.lock:
+            if key in self.cache:
+                result, timestamp = self.cache[key]
+                if time.time() - timestamp < self.ttl:
+                    # Move to end (most recently used)
+                    self.cache.move_to_end(key)
+                    return result
+                else:
+                    # Expired, remove it
+                    del self.cache[key]
+            return None
+    
+    def set(self, key: str, value):
+        with self.lock:
+            if key in self.cache:
+                self.cache.move_to_end(key)
+            elif len(self.cache) >= self.maxsize:
+                # Remove least recently used item
+                self.cache.popitem(last=False)
+            self.cache[key] = (value, time.time())
+
+
+def cache_result(cache_duration: float = 1.0, maxsize: int = 128):
+    """Decorator to cache function results with LRU cache and TTL."""
+    cache = LRUCache(maxsize=maxsize, ttl=cache_duration)
+    
     def decorator(func):
-        cache = {}
-        lock = threading.Lock()
-        
         @wraps(func)
         def wrapper(*args, **kwargs):
-            key = str(args) + str(kwargs)
-            current_time = time.time()
-            
-            with lock:
-                if key in cache:
-                    result, timestamp = cache[key]
-                    if current_time - timestamp < cache_duration:
-                        return result
-                    else:
-                        del cache[key]
-                
-                result = func(*args, **kwargs)
-                cache[key] = (result, current_time)
+            # Create cache key from args and kwargs
+            key = str(args) + str(sorted(kwargs.items()))
+            result = cache.get(key)
+            if result is not None:
                 return result
+            
+            result = func(*args, **kwargs)
+            cache.set(key, result)
+            return result
         return wrapper
     return decorator
 
@@ -75,97 +102,107 @@ class NetworkMonitorService:
     @cache_result(cache_duration=1.0)
     def get_network_interfaces(self) -> List[NetworkInterface]:
         """Get all network interfaces with their details."""
-        if self._simulation_service:
-            return self._simulation_service.get_network_interfaces()
-        
-        print("Service: Collecting network interfaces")  # Debug log
-        interfaces = get_network_interfaces()
-        result = []
-        
-        for interface_name, addresses in interfaces.items():
-            # Determine interface type and status
-            interface_type = self._determine_interface_type(interface_name)
-            is_active = self._is_interface_active(interface_name)
+        try:
+            if self._simulation_service:
+                return self._simulation_service.get_network_interfaces()
             
-            network_interface = NetworkInterface(
-                name=interface_name,
-                ipv4=addresses.get('IPv4'),
-                ipv6=addresses.get('IPv6'),
-                type=interface_type,
-                status="active" if is_active else "inactive",
-                is_up=is_active,
-                is_running=is_active
-            )
-            result.append(network_interface)
-        
-        print(f"Service: Collected {len(result)} network interfaces")  # Debug log
-        return result
+            print("Service: Collecting network interfaces")  # Debug log
+            interfaces = get_network_interfaces()
+            result = []
+            
+            for interface_name, addresses in interfaces.items():
+                # Determine interface type and status
+                interface_type = self._determine_interface_type(interface_name)
+                is_active = self._is_interface_active(interface_name)
+                
+                network_interface = NetworkInterface(
+                    name=interface_name,
+                    ipv4=addresses.get('IPv4'),
+                    ipv6=addresses.get('IPv6'),
+                    type=interface_type,
+                    status="active" if is_active else "inactive",
+                    is_up=is_active,
+                    is_running=is_active
+                )
+                result.append(network_interface)
+            
+            print(f"Service: Collected {len(result)} network interfaces")  # Debug log
+            return result
+        except Exception as e:
+            print(f"Error getting network interfaces: {str(e)}")
+            # Return empty list instead of crashing
+            return []
 
     @cache_result(cache_duration=1.0)
     def get_performance_metrics(self) -> List[PerformanceMetric]:
         """Get performance metrics for all network interfaces."""
-        if self._simulation_service:
-            return self._simulation_service.get_performance_metrics()
-        
-        print("Service: Collecting performance metrics")  # Debug log
-        current_time = time.time()
-        with self._performance_lock:
-            # Check if we need to refresh performance data
-            if current_time - self._last_performance_refresh >= self.cache_duration:
-                print("Service: Refreshing performance data")  # Debug log
-                result = []
-                
-                # Get initial network stats for throughput calculation
-                net_io = psutil.net_io_counters(pernic=True)
-                initial_stats = {
-                    interface: (stats.bytes_sent, stats.bytes_recv, stats.packets_sent, stats.packets_recv)
-                    for interface, stats in net_io.items()
-                }
-                
-                # Calculate final stats after a short delay for throughput calculation
-                time.sleep(0.2)  # Short delay for throughput calculation
-                final_net_io = psutil.net_io_counters(pernic=True)
-                final_stats = {
-                    interface: (stats.bytes_sent, stats.bytes_recv, stats.packets_sent, stats.packets_recv)
-                    for interface, stats in final_net_io.items()
-                }
-                
-                # Get latencies concurrently (this takes time)
-                interfaces = list(net_io.keys())
-                host = "8.8.8.8"
-                latencies = get_latency_concurrent(interfaces, host)
-                
-                # Calculate final metrics with actual values
-                for interface, initial_stat in initial_stats.items():
-                    if interface in final_stats:
-                        initial_bytes_sent, initial_bytes_recv, initial_packets_sent, initial_packets_recv = initial_stat
-                        final_bytes_sent, final_bytes_recv, final_packets_sent, final_packets_recv = final_stats[interface]
-                        
-                        bytes_sent_interval = final_bytes_sent - initial_bytes_sent
-                        bytes_recv_interval = final_bytes_recv - initial_bytes_recv
-                        total_bytes_interval = bytes_sent_interval + bytes_recv_interval
-                        elapsed_time = 0.2
-                        throughput = calculate_throughput(total_bytes_interval, elapsed_time)
- 
-                        performance_metric = PerformanceMetric(
-                            interface=interface,
-                            bytes_sent=final_bytes_sent,
-                            bytes_recv=final_bytes_recv,
-                            packets_sent=final_packets_sent,
-                            packets_recv=final_packets_recv,
-                            latency=latencies.get(interface),
-                            throughput=throughput,
-                            timestamp=datetime.now()
-                        )
-                        result.append(performance_metric)
-                
-                self._performance_data_cache = result
-                self._last_performance_refresh = current_time
-            else:
-                print("Service: Using cached performance data")  # Debug log
+        try:
+            if self._simulation_service:
+                return self._simulation_service.get_performance_metrics()
+            
+            print("Service: Collecting performance metrics")  # Debug log
+            current_time = time.time()
+            with self._performance_lock:
+                # Check if we need to refresh performance data
+                if current_time - self._last_performance_refresh >= self.cache_duration:
+                    print("Service: Refreshing performance data")  # Debug log
+                    result = []
+                    
+                    # Get initial network stats for throughput calculation
+                    net_io = psutil.net_io_counters(pernic=True)
+                    initial_stats = {
+                        interface: (stats.bytes_sent, stats.bytes_recv, stats.packets_sent, stats.packets_recv)
+                        for interface, stats in net_io.items()
+                    }
+                    
+                    # Calculate final stats after a short delay for throughput calculation
+                    time.sleep(0.2)  # Short delay for throughput calculation
+                    final_net_io = psutil.net_io_counters(pernic=True)
+                    final_stats = {
+                        interface: (stats.bytes_sent, stats.bytes_recv, stats.packets_sent, stats.packets_recv)
+                        for interface, stats in final_net_io.items()
+                    }
+                    
+                    # Get latencies concurrently (this takes time)
+                    interfaces = list(net_io.keys())
+                    host = "8.8.8.8"
+                    latencies = get_latency_concurrent(interfaces, host)
+                    
+                    # Calculate final metrics with actual values
+                    for interface, initial_stat in initial_stats.items():
+                        if interface in final_stats:
+                            initial_bytes_sent, initial_bytes_recv, initial_packets_sent, initial_packets_recv = initial_stat
+                            final_bytes_sent, final_bytes_recv, final_packets_sent, final_packets_recv = final_stats[interface]
+                            
+                            bytes_sent_interval = final_bytes_sent - initial_bytes_sent
+                            bytes_recv_interval = final_bytes_recv - initial_bytes_recv
+                            total_bytes_interval = bytes_sent_interval + bytes_recv_interval
+                            elapsed_time = 0.2
+                            throughput = calculate_throughput(total_bytes_interval, elapsed_time)
+     
+                            performance_metric = PerformanceMetric(
+                                interface=interface,
+                                bytes_sent=final_bytes_sent,
+                                bytes_recv=final_bytes_recv,
+                                packets_sent=final_packets_sent,
+                                packets_recv=final_packets_recv,
+                                latency=latencies.get(interface),
+                                throughput=throughput,
+                                timestamp=datetime.now()
+                            )
+                            result.append(performance_metric)
+                    
+                    self._performance_data_cache = result
+                    self._last_performance_refresh = current_time
+                else:
+                    print("Service: Using cached performance data")  # Debug log
 
             print(f"Service: Returning {len(self._performance_data_cache)} performance metrics")  # Debug log
             return self._performance_data_cache
+        except Exception as e:
+            print(f"Error getting performance metrics: {str(e)}")
+            # Return empty list instead of crashing
+            return []
 
     @cache_result(cache_duration=5.0)
     def get_hardware_info(self) -> List[HardwareInfo]:

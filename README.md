@@ -32,9 +32,9 @@ For more details on the limitations and future development, please see the `KNOW
 
 ## ⚙️ How to Run
 
-You can run this application using the automated run scripts or by setting up the backend and frontend manually. The automated scripts are the recommended approach as they handle all dependencies and startup procedures automatically.
+You can run this application using the automated run scripts, Docker, or by setting up the backend and frontend manually. The automated scripts are the recommended approach for development, while Docker is recommended for production deployments.
 
-### 🚀 Using Automated Run Scripts (Recommended)
+### 🚀 Using Automated Run Scripts (Development)
 
 The project includes automated run scripts to simplify setup and execution for both Unix-like systems and Windows. Both scripts provide the same functionality including dependency checking, dependency installation, virtual environment management, application startup, error handling, and cross-platform compatibility. The scripts handle process management by storing process IDs in `.pid` files, automatically cleaning up processes when the script exits, and properly terminating background processes when interrupted (Ctrl+C).
 
@@ -74,6 +74,36 @@ run.bat [option]
 
 When running in development mode, the application will start both the backend API server (on port 8000) and the frontend Next.js application (on port 3000). The backend will be available at `http://127.0.0.1:8000` and the frontend at `http://127.0.0.1:3000`.
 
+### 🐳 Production Deployment with Docker
+
+For production deployments, we recommend using Docker containers for better security, scalability, and consistency across environments.
+
+**Prerequisites:**
+- Docker Engine
+- Docker Compose (optional but recommended)
+
+**Quick Start with Docker Compose:**
+```bash
+# Build and start the application
+docker-compose up -d
+
+# Access the application at http://localhost:8000 (API) and http://localhost:3000 (Frontend)
+```
+
+**Build and run individual containers:**
+```bash
+# Build the Docker image
+docker build -t network-monitor .
+
+# Run the application
+docker run -p 8000:8000 -p 3000:3000 network-monitor
+```
+
+**Environment Configuration:**
+- The application uses `config.json` for configuration
+- Log files are stored in the `/logs` directory within the container
+- Use volume mounts to persist configuration and logs
+
 ### 🖥️ Manual Setup (Advanced Users)
 
 For those who prefer to set up the backend and frontend manually, follow these steps:
@@ -109,6 +139,15 @@ For those who prefer to set up the backend and frontend manually, follow these s
     ```
 
 6. Open your web browser and navigate to `http://127.0.1:300` to access the application interface. The API will be available at `http://127.0.1:8000`.
+
+---
+
+## 🛡️ Security Considerations
+
+- **CORS Configuration:** The application is configured to allow requests from `http://localhost:3000` and `http://127.0.0.1:3000`. In production, update these to your actual frontend domain(s).
+- **Authentication:** Consider implementing authentication for production deployments
+- **Rate Limiting:** API endpoints should be protected with rate limiting in production
+- **Environment Variables:** Use environment variables for sensitive configuration in production
 
 ---
 
